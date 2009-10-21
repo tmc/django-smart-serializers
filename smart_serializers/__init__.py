@@ -16,4 +16,22 @@ def get_unique_fields(model):
     # otherwise fall back to the primary key
     if not fields:
         fields = ('pk',)
+
+    #@todo should we sort on the way out?
     return fields
+
+def construct_lookup_pattern(instance):
+    """Given a model instance, constructs a lookup pattern.
+
+    If the instance can reliably be described with a set of fields a dictionary
+    mapping field names to values for the instance.  Otherwise a single integer
+    representing the instance's primary key is returned.
+    """
+    unique_fields = get_unique_fields(instance)
+    print unique_fields
+
+    # if we can only describe with the pk, return it's value
+    if unique_fields == ('pk',):
+        return instance.pk
+    else:
+        return dict((field, getattr(instance, field)) for field in sorted(unique_fields))

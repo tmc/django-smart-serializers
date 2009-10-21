@@ -1,6 +1,6 @@
 import datetime
 from django.test import TestCase
-from smart_serializers import get_unique_fields
+from smart_serializers import get_unique_fields, construct_lookup_pattern
 from smart_serializers.python import Serializer, Deserializer
 from core.models import Article, Author, AuthorProfile, Category, Publication, Site
 from core.models import *
@@ -10,9 +10,9 @@ def get_field_by_name(model, field_name):
     return [field for field in model._meta.fields if field.name == field_name][0]
 
 
-class UniqueFieldsTest(TestCase):
+class FieldInspectionTest(TestCase):
 
-    def test_single_slug(self):
+    def test_unique_field_collection(self):
         self.assertEqual(get_unique_fields(OnlyPkModel), ('pk',))
         self.assertEqual(get_unique_fields(SlugModel), ('pk',))
         self.assertEqual(get_unique_fields(UniqueSlugModel), ('slug',))
@@ -22,9 +22,23 @@ class UniqueFieldsTest(TestCase):
         self.assertEqual(get_unique_fields(UniqueTogetherAndUniqueModel), ('val1', 'val2', 'val3'))
 
         #self.assertEqual(get_unique_fields(TwoUniqueTogetherSetsModel), ('val1', 'val2', 'val3'))
+        #@todo test parent-inherited pk's
+        #@todo test multiple unique_together sets
 
-#@todo test parent-inherited pk's
-#@todo test multiple unique_together sets
+class LookupPatternGenerationTest(TestCase):
+
+    def setUp(self):
+        OnlyPkModel.objects.create()
+        SlugModel.objects.create(slug='foo')
+        UniqueSlugModel.objects.create(slug='bar')
+        UniqueIntModel.objects.create(val=1)
+        TwoUniqueIntsModel.objects.create(val1=1, val2=2)
+
+    def test_lookup_pattern_generation(self):
+        self.assertEqual(construct_lookup_pattern(OnlyPkModel.objects.get(pk=1)), 1)
+        self.assertEqual(construct_lookup_pattern(SlugModel.objects.get(pk=1)), 1)
+        self.assertEqual(construct_lookup_pattern(UniqueSlugModel.objects.get(pk=1)),
+                         {'slug': 'bar'})
 
 class SerializerTest(TestCase):
 
@@ -37,7 +51,7 @@ class SerializerTest(TestCase):
         article.categories.add(category1)
         article.categories.add(category2)
 
-    def testFoo(self):
+    def xtestFoo(self):
         author_field = get_field_by_name(Article, 'author')
 
         #@todo: dry up this boilerplate:
