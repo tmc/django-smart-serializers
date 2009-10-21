@@ -1,6 +1,6 @@
 import datetime
 from django.test import TestCase
-from smart_serializers import get_unique_fields, construct_lookup_pattern
+from smart_serializers import get_unique_fields, lookup_pattern_from_instance
 from smart_serializers.python import Serializer, Deserializer
 from core.models import Article, Author, AuthorProfile, Category, Publication, Site
 from core.models import *
@@ -33,12 +33,22 @@ class LookupPatternGenerationTest(TestCase):
         UniqueSlugModel.objects.create(slug='bar')
         UniqueIntModel.objects.create(val=1)
         TwoUniqueIntsModel.objects.create(val1=1, val2=2)
+        UniqueTogetherModel.objects.create(val1=1, val2=2)
+        UniqueTogetherAndUniqueModel.objects.create(val1=1, val2=2, val3=3)
 
     def test_lookup_pattern_generation(self):
-        self.assertEqual(construct_lookup_pattern(OnlyPkModel.objects.get(pk=1)), 1)
-        self.assertEqual(construct_lookup_pattern(SlugModel.objects.get(pk=1)), 1)
-        self.assertEqual(construct_lookup_pattern(UniqueSlugModel.objects.get(pk=1)),
+        self.assertEqual(lookup_pattern_from_instance(OnlyPkModel.objects.get(pk=1)), 1)
+        self.assertEqual(lookup_pattern_from_instance(SlugModel.objects.get(pk=1)), 1)
+        self.assertEqual(lookup_pattern_from_instance(UniqueSlugModel.objects.get(pk=1)),
                          {'slug': 'bar'})
+        self.assertEqual(lookup_pattern_from_instance(UniqueIntModel.objects.get(pk=1)),
+                         {'val': 1})
+        self.assertEqual(lookup_pattern_from_instance(TwoUniqueIntsModel.objects.get(pk=1)),
+                         {'val1': 1, 'val2': 2})
+        self.assertEqual(lookup_pattern_from_instance(UniqueTogetherModel.objects.get(pk=1)),
+                         {'val1': 1, 'val2': 2})
+        self.assertEqual(lookup_pattern_from_instance(UniqueTogetherAndUniqueModel.objects.get(pk=1)),
+                         {'val1': 1, 'val2': 2, 'val3': 3})
 
 class SerializerTest(TestCase):
 
@@ -51,7 +61,7 @@ class SerializerTest(TestCase):
         article.categories.add(category1)
         article.categories.add(category2)
 
-    def xtestFoo(self):
+    def test_basic_fk_field(self):
         author_field = get_field_by_name(Article, 'author')
 
         #@todo: dry up this boilerplate:
@@ -61,6 +71,26 @@ class SerializerTest(TestCase):
 
         serialized_author = serializer._current[author_field.name]
         self.assertEqual(serialized_author, {
-            'name': 'Joe',
+            'name': u'Joe',
         })
-        #self.assertEqual(Serializer().serialize(Article.objects.all()), 'foo')
+
+    def test_category_serialization(self):
+        self.assertEqual(Serializer().serialize(Category.objects.all()), [
+            {'model': u'core.category', 'fields': {'name': u'Bar', 'slug': u'bar'}},
+            {'model': u'core.category', 'fields': {'name': u'Foo', 'slug': u'foo'}}
+        ])
+
+    def test_full_article_serialization(self):
+        self.assertEqual(Serializer().serialize(Article.objects.all()), [
+            {
+                'pk': 1,
+                'model': u'core.article',
+                'fields': {'headline': u'LHC destroys Earth',
+                           'pub_date': datetime.datetime(2009, 1, 1, 0, 0),
+                           'author': {'name': u'Joe'},
+                           'categories': [
+                                {'slug': u'bar'},
+                                {'slug': u'foo'},
+                            ],
+                          }}
+            ])

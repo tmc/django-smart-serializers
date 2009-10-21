@@ -9,6 +9,8 @@ from django.core.serializers import base
 from django.db import models
 from django.utils.encoding import smart_unicode, is_protected_type
 
+from smart_serializers import lookup_pattern_from_instance, described_only_by_pk
+
 class Serializer(base.Serializer):
     """
     Serializes a QuerySet to basic Python objects.
@@ -27,11 +29,14 @@ class Serializer(base.Serializer):
         self._current = {}
 
     def end_object(self, obj):
-        self.objects.append({
+        object_dict = {
             "model"  : smart_unicode(obj._meta),
-            "pk"     : smart_unicode(obj._get_pk_val(), strings_only=True),
             "fields" : self._current
-        })
+        }
+        if described_only_by_pk(obj):
+            object_dict['pk'] = smart_unicode(obj._get_pk_val(),
+                                              strings_only=True)
+        self.objects.append(object_dict)
         self._current = None
 
     def handle_field(self, obj, field):
@@ -46,18 +51,22 @@ class Serializer(base.Serializer):
 
     def handle_fk_field(self, obj, field):
         related = getattr(obj, field.name)
+
         if related is not None:
-            if field.rel.field_name == related._meta.pk.name:
-                # Related to remote object via primary key
-                related = related._get_pk_val()
-            else:
-                # Related to remote object via other field
-                related = getattr(related, field.rel.field_name)
-        self._current[field.name] = smart_unicode(related, strings_only=True)
+            related = lookup_pattern_from_instance(related)
+            #if field.rel.field_name == related._meta.pk.name:
+            #    # Related to remote object via primary key
+            #    related = related._get_pk_val()
+            #@todo consider this case:
+            #else:
+            #    # Related to remote object via other field
+            #    related = getattr(related, field.rel.field_name)
+        #self._current[field.name] = smart_unicode(related, strings_only=True)
+        self._current[field.name] = related
 
     def handle_m2m_field(self, obj, field):
         if field.creates_table:
-            self._current[field.name] = [smart_unicode(related._get_pk_val(), strings_only=True)
+            self._current[field.name] = [lookup_pattern_from_instance(related)
                                for related in getattr(obj, field.name).iterator()]
 
     def getvalue(self):

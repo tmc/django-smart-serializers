@@ -20,18 +20,21 @@ def get_unique_fields(model):
     #@todo should we sort on the way out?
     return fields
 
-def construct_lookup_pattern(instance):
+def described_only_by_pk(model):
+    """Helper function to determine if a model can be described uniquely by a
+    subset of it's fields apart from the primary key"""
+    return get_unique_fields(model) == ('pk',)
+
+def lookup_pattern_from_instance(instance):
     """Given a model instance, constructs a lookup pattern.
 
-    If the instance can reliably be described with a set of fields a dictionary
-    mapping field names to values for the instance.  Otherwise a single integer
-    representing the instance's primary key is returned.
+    If the instance can reliably be described with a subset of fields a
+    dictionary mapping field names to values for the instance. Otherwise a
+    single integer representing the instance's primary key is returned.
     """
-    unique_fields = get_unique_fields(instance)
-    print unique_fields
-
     # if we can only describe with the pk, return it's value
-    if unique_fields == ('pk',):
+    if described_only_by_pk(instance):
         return instance.pk
     else:
-        return dict((field, getattr(instance, field)) for field in sorted(unique_fields))
+        return dict((field, getattr(instance, field))
+                    for field in get_unique_fields(instance))
