@@ -61,19 +61,6 @@ class SerializerTest(TestCase):
         article.categories.add(category1)
         article.categories.add(category2)
 
-    def test_basic_fk_field(self):
-        author_field = get_field_by_name(Article, 'author')
-
-        #@todo: dry up this boilerplate:
-        serializer = Serializer()
-        serializer.start_object(None)
-        serializer.handle_fk_field(Article.objects.get(pk=1), author_field)
-
-        serialized_author = serializer._current[author_field.name]
-        self.assertEqual(serialized_author, {
-            'name': u'Joe',
-        })
-
     def test_category_serialization(self):
         self.assertEqual(Serializer().serialize(Category.objects.all()), [
             {'model': u'core.category', 'fields': {'name': u'Bar', 'slug': u'bar'}},
