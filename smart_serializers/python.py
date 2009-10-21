@@ -5,11 +5,10 @@ other serializers.
 """
 
 from django.conf import settings
-from django.core.serializers import base
 from django.db import models
 from django.utils.encoding import smart_unicode, is_protected_type
 
-from smart_serializers import lookup_pattern_from_instance, described_only_by_pk
+from smart_serializers import base, lookup_pattern_from_instance, described_only_by_pk
 
 class Serializer(base.Serializer):
     """
@@ -83,8 +82,13 @@ def Deserializer(object_list, **options):
     for d in object_list:
         # Look up the model and starting build a dict of data for it.
         Model = _get_model(d["model"])
-        data = {Model._meta.pk.attname : Model._meta.pk.to_python(d["pk"])}
+        uses_dictionary_lookup = False
+        data = {}
         m2m_data = {}
+        if 'pk' in d:
+            data[Model._meta.pk.attname] = Model._meta.pk.to_python(d["pk"])
+        else:
+            uses_dictionary_lookup = True
 
         # Handle each field
         for (field_name, field_value) in d["fields"].iteritems():
@@ -109,7 +113,7 @@ def Deserializer(object_list, **options):
             else:
                 data[field.name] = field.to_python(field_value)
 
-        yield base.DeserializedObject(Model(**data), m2m_data)
+        yield base.DeserializedObject(Model, data, m2m_data)
 
 def _get_model(model_identifier):
     """

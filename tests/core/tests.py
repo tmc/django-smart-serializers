@@ -81,3 +81,23 @@ class SerializerTest(TestCase):
                             ],
                           }}
             ])
+
+class DeSerializerTest(TestCase):
+
+    def setUp(self):
+        Category.objects.create(name="Foo", slug="foo")
+
+    def test_category_deserialization(self):
+        serialzed_categories = Serializer().serialize(Category.objects.all())
+        category = Deserializer(serialzed_categories).next()
+        category2 = Deserializer(serialzed_categories).next()
+
+        Category.objects.all().delete()
+
+        category.save()
+        self.assertEqual(Category.objects.count(), 1)
+
+        # saving an identical object shouldn't create another instance in the
+        # database
+        category2.save()
+        self.assertEqual(Category.objects.count(), 1)
