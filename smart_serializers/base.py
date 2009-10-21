@@ -4,7 +4,7 @@ Module for abstract serializer/unserializer base classes.
 
 from StringIO import StringIO
 
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from django.utils.encoding import smart_str, smart_unicode
 from django.utils import datetime_safe
 
@@ -147,12 +147,13 @@ class DeserializedObject(object):
     (and not touch the many-to-many stuff.)
     """
 
-    def __init__(self, obj, m2m_data=None):
-        self.object = obj
+    def __init__(self, model, data, m2m_data=None):
+        self.model = model
+        self.data = data
         self.m2m_data = m2m_data
 
     def __repr__(self):
-        return "<DeserializedObject: %s>" % smart_str(self.object)
+        return "<DeserializedObject: %s>" % smart_str(self.model(**self.data))
 
     def save(self, save_m2m=True):
         # Call save on the Model baseclass directly. This bypasses any
@@ -160,10 +161,24 @@ class DeserializedObject(object):
         # This ensures that the data that is deserialized is literally
         # what came from the file, not post-processed by pre_save/save
         # methods.
-        models.Model.save_base(self.object, raw=True)
+
+        created = False
+        try:
+            obj = self.model._default_manager.get(**self.data)
+        except self.model.DoesNotExist:
+            try:
+                obj = self.model(**self.data)
+                sid = transaction.savepoint()
+                #@todo should we use force_insert?
+                models.Model.save_base(obj, raw=True)
+                transaction.savepoint_commit(sid)
+                created = True
+            except IntegrityError, e:
+                transaction.savepoint_rollback(sid)
+
         if self.m2m_data and save_m2m:
             for accessor_name, object_list in self.m2m_data.items():
-                setattr(self.object, accessor_name, object_list)
+                setattr(obj, accessor_name, object_list)
 
         # prevent a second (possibly accidental) call to save() from saving
         # the m2m data twice.
