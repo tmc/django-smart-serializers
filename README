@@ -1,0 +1,11 @@
+========================
+django smart serializers
+========================
+
+Project Goals
+=============
+
+1. Be backwards compatible in deserialzing django core serializer output
+2. Allow fixtures to not include primary keys if a model can be described with a subset of fields other than the primary key.
+3. Allow references to other models to be described with a lookup dictionary in addition to a primary key.
+4. Once complete, provide as a patch to django proper.
