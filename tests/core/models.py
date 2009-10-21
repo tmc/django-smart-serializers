@@ -64,13 +64,11 @@ class Author(models.Model):
         return self.name
 
 class Article(models.Model):
-    author = models.ForeignKey(Author)
     headline = models.CharField(max_length=50)
-    pub_date = models.DateTimeField()
     categories = models.ManyToManyField(Category)
 
     class Meta:
-       ordering = ('pub_date',)
+       ordering = ('id',)
 
     def __unicode__(self):
         return self.headline

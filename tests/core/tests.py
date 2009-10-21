@@ -50,14 +50,12 @@ class LookupPatternGenerationTest(TestCase):
         self.assertEqual(lookup_pattern_from_instance(UniqueTogetherAndUniqueModel.objects.get(pk=1)),
                          {'val1': 1, 'val2': 2, 'val3': 3})
 
-class SerializerTest(TestCase):
+class SerializerDeserializerTests(TestCase):
 
     def setUp(self):
-        author = Author.objects.create(name="Joe")
-        author_profile = AuthorProfile.objects.create(author=author, date_of_birth=datetime.date(2009, 1, 1))
         category1 = Category.objects.create(name="Foo", slug="foo")
         category2 = Category.objects.create(name="Bar", slug="bar")
-        article = Article.objects.create(author=author, headline="LHC destroys Earth", pub_date=datetime.date(2009, 1, 1))
+        article = Article.objects.create(headline="LHC destroys Earth")
         article.categories.add(category1)
         article.categories.add(category2)
 
@@ -73,8 +71,6 @@ class SerializerTest(TestCase):
                 'pk': 1,
                 'model': u'core.article',
                 'fields': {'headline': u'LHC destroys Earth',
-                           'pub_date': datetime.datetime(2009, 1, 1, 0, 0),
-                           'author': {'name': u'Joe'},
                            'categories': [
                                 {'slug': u'bar'},
                                 {'slug': u'foo'},
@@ -82,12 +78,10 @@ class SerializerTest(TestCase):
                           }}
             ])
 
-class DeSerializerTest(TestCase):
-
-    def setUp(self):
+    def test_category_deserialization(self):
+        Category.objects.all().delete()
         Category.objects.create(name="Foo", slug="foo")
 
-    def test_category_deserialization(self):
         serialzed_categories = Serializer().serialize(Category.objects.all())
         category = Deserializer(serialzed_categories).next()
         category2 = Deserializer(serialzed_categories).next()
@@ -97,7 +91,21 @@ class DeSerializerTest(TestCase):
         category.save()
         self.assertEqual(Category.objects.count(), 1)
 
-        # saving an identical object shouldn't create another instance in the
-        # database
+        # saving an identical object shouldn't create another instance
         category2.save()
         self.assertEqual(Category.objects.count(), 1)
+
+    def test_repeated_m2m_deserialization(self):
+        serialized_articles = Serializer().serialize(Article.objects.all())
+        article = Deserializer(serialized_articles).next()
+        Category.objects.all().delete()
+        Article.objects.all().delete()
+
+        article.save()
+        self.assertEqual(Article.objects.count(), 1)
+        self.assertEqual(Category.objects.count(), 2)
+
+        article = Deserializer(serialized_articles).next()
+        article.save()
+        self.assertEqual(Article.objects.count(), 1)
+        self.assertEqual(Category.objects.count(), 2)
