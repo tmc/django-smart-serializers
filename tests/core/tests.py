@@ -98,14 +98,11 @@ class SerializerDeserializerTests(TestCase):
     def test_repeated_m2m_deserialization(self):
         serialized_articles = Serializer().serialize(Article.objects.all())
         article = Deserializer(serialized_articles).next()
-        Category.objects.all().delete()
         Article.objects.all().delete()
 
         article.save()
         self.assertEqual(Article.objects.count(), 1)
-        self.assertEqual(Category.objects.count(), 2)
 
         article = Deserializer(serialized_articles).next()
         article.save()
         self.assertEqual(Article.objects.count(), 1)
-        self.assertEqual(Category.objects.count(), 2)

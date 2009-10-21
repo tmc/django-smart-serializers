@@ -135,6 +135,18 @@ class Deserializer(object):
         """Iteration iterface -- return the next item in the stream"""
         raise NotImplementedError
 
+def _object_lookup_to_pk(model, lookup):
+    # if it's a pk return it directly
+    try:
+        pk = int(lookup)
+    except (TypeError, ValueError):
+    # otherwise, attempt a lookup
+        try:
+            pk = model._default_manager.get(**lookup).pk
+        except model.DoesNotExist:
+            pk = None
+    return pk
+
 class DeserializedObject(object):
     """
     A deserialized model.
@@ -178,6 +190,8 @@ class DeserializedObject(object):
 
         if self.m2m_data and save_m2m:
             for accessor_name, object_list in self.m2m_data.items():
+                rel_model = obj._meta.get_field(accessor_name).rel.to
+                object_list = [_object_lookup_to_pk(rel_model, rel_obj) for rel_obj in object_list]
                 setattr(obj, accessor_name, object_list)
 
         # prevent a second (possibly accidental) call to save() from saving

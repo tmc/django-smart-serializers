@@ -6,6 +6,7 @@ other serializers.
 
 from django.conf import settings
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils.encoding import smart_unicode, is_protected_type
 
 from smart_serializers import base, lookup_pattern_from_instance, described_only_by_pk
@@ -100,12 +101,21 @@ def Deserializer(object_list, **options):
             # Handle M2M relations
             if field.rel and isinstance(field.rel, models.ManyToManyRel):
                 m2m_convert = field.rel.to._meta.pk.to_python
-                m2m_data[field.name] = [m2m_convert(smart_unicode(pk)) for pk in field_value]
+                rel_values = []
+                for rel_value in field_value:
+                    try:
+                        rel_values.append(m2m_convert(smart_unicode(rel_value)))
+                    except ValidationError:
+                        rel_values.append(rel_value)
+                m2m_data[field.name] = rel_values
 
             # Handle FK fields
             elif field.rel and isinstance(field.rel, models.ManyToOneRel):
                 if field_value is not None:
-                    data[field.attname] = field.rel.to._meta.get_field(field.rel.field_name).to_python(field_value)
+                    try:
+                        data[field.attname] = field.rel.to._meta.get_field(field.rel.field_name).to_python(field_value)
+                    except ValidationError:
+                        data[field.attname] = field_value
                 else:
                     data[field.attname] = None
 
