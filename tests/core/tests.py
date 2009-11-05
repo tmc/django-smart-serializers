@@ -1,6 +1,6 @@
 import datetime
 from django.test import TestCase
-from smart_serializers import get_unique_fields, lookup_pattern_from_instance
+from smart_serializers.utils import get_unique_fields, lookup_pattern_from_instance
 from smart_serializers.python import Serializer, Deserializer
 from core.models import Article, Author, AuthorProfile, Category, Publication, Site
 from core.models import *

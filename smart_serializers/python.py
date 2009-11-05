@@ -7,9 +7,10 @@ other serializers.
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.serializers import base
 from django.utils.encoding import smart_unicode, is_protected_type
 
-from smart_serializers import base, lookup_pattern_from_instance, described_only_by_pk
+from smart_serializers import utils
 
 class Serializer(base.Serializer):
     """
@@ -33,7 +34,7 @@ class Serializer(base.Serializer):
             "model"  : smart_unicode(obj._meta),
             "fields" : self._current
         }
-        if described_only_by_pk(obj):
+        if utils.described_only_by_pk(obj):
             object_dict['pk'] = smart_unicode(obj._get_pk_val(),
                                               strings_only=True)
         self.objects.append(object_dict)
@@ -53,7 +54,7 @@ class Serializer(base.Serializer):
         related = getattr(obj, field.name)
 
         if related is not None:
-            related = lookup_pattern_from_instance(related)
+            related = utils.lookup_pattern_from_instance(related)
             #if field.rel.field_name == related._meta.pk.name:
             #    # Related to remote object via primary key
             #    related = related._get_pk_val()
@@ -66,7 +67,7 @@ class Serializer(base.Serializer):
 
     def handle_m2m_field(self, obj, field):
         if field.creates_table:
-            self._current[field.name] = [lookup_pattern_from_instance(related)
+            self._current[field.name] = [utils.lookup_pattern_from_instance(related)
                                for related in getattr(obj, field.name).iterator()]
 
     def getvalue(self):
@@ -123,7 +124,7 @@ def Deserializer(object_list, **options):
             else:
                 data[field.name] = field.to_python(field_value)
 
-        yield base.DeserializedObject(Model, data, m2m_data)
+        yield utils.DeserializedObject(Model, data, m2m_data)
 
 def _get_model(model_identifier):
     """
