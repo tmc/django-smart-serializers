@@ -136,7 +136,8 @@ class Deserializer(object):
         raise NotImplementedError
 
 def _object_lookup_to_pk(model, lookup):
-    # if it's a pk return it directly
+    """Performs a lookup if `lookup` is not simply a primary key otherwise is
+    returned directly."""
     try:
         pk = int(lookup)
     except (TypeError, ValueError):
@@ -192,7 +193,7 @@ class DeserializedObject(object):
             for accessor_name, object_list in self.m2m_data.items():
                 rel_model = obj._meta.get_field(accessor_name).rel.to
                 object_list = [_object_lookup_to_pk(rel_model, rel_obj) for rel_obj in object_list]
-                setattr(obj, accessor_name, object_list)
+                setattr(obj, accessor_name, filter(lambda x: x, object_list))
 
         # prevent a second (possibly accidental) call to save() from saving
         # the m2m data twice.

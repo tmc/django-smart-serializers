@@ -106,3 +106,15 @@ class SerializerDeserializerTests(TestCase):
         article = Deserializer(serialized_articles).next()
         article.save()
         self.assertEqual(Article.objects.count(), 1)
+
+    def test_m2m_deserialization_with_missing_objects(self):
+        serialized_articles = Serializer().serialize(Article.objects.all())
+        article = Deserializer(serialized_articles).next()
+        Article.objects.all().delete()
+        Category.objects.all().delete()
+
+        article.save()
+        self.assertEqual(Article.objects.count(), 1)
+
+        article = Article.objects.filter()[0]
+        self.assertEqual(article.categories.count(), 0)
